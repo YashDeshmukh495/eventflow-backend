@@ -25,6 +25,13 @@ const convertToString = (val) => {
   return String(val);
 };
 
+// Helper for case-insensitive and fallback key lookup in parsed AI JSON objects
+const getCaseInsensitiveKey = (obj, targetKey) => {
+  if (!obj || typeof obj !== 'object') return '';
+  const foundKey = Object.keys(obj).find(k => k.toLowerCase() === targetKey.toLowerCase());
+  return foundKey ? obj[foundKey] : '';
+};
+
 // @desc    Generate event plan using Gemini AI (with automatic OpenAI fallback if key starts with sk-)
 // @route   POST /api/ai/generate-event
 // @access  Private/Admin
@@ -40,28 +47,15 @@ export const generateEventPlan = async (req, res) => {
     return res.status(500).json({ message: 'GEMINI_API_KEY is not configured on the backend.' });
   }
 
-  const prompt = `Generate a professional college event plan.
-Event Title: ${title}
-
-Return JSON format:
+  const prompt = `Generate a professional college event plan for the event titled "${title}".
+You must return a valid JSON object matching this schema exactly:
 {
-  "description": "",
-  "agenda": "",
-  "requirements": "",
-  "benefits": ""
+  "description": "An engaging description of 100-150 words.",
+  "agenda": "A bullet-pointed schedule or timeline.",
+  "requirements": "A bullet-pointed list of student prerequisites.",
+  "benefits": "A bullet-pointed list of key benefits and takeaways."
 }
-
-Description:
-100-150 words.
-
-Agenda:
-Bullet points.
-
-Requirements:
-Bullet points.
-
-Benefits:
-Bullet points.`;
+Do not use other keys. Make sure "description" and "agenda" are fully populated.`;
 
   // Detect if the user input an OpenAI key under GEMINI_API_KEY
   if (apiKey.startsWith('sk-')) {
@@ -78,10 +72,10 @@ Bullet points.`;
       const parsedData = JSON.parse(jsonText);
       
       return res.status(200).json({
-        description: convertToString(parsedData.description),
-        agenda: convertToString(parsedData.agenda),
-        requirements: convertToString(parsedData.requirements),
-        benefits: convertToString(parsedData.benefits)
+        description: convertToString(getCaseInsensitiveKey(parsedData, 'description')),
+        agenda: convertToString(getCaseInsensitiveKey(parsedData, 'agenda') || getCaseInsensitiveKey(parsedData, 'schedule')),
+        requirements: convertToString(getCaseInsensitiveKey(parsedData, 'requirements') || getCaseInsensitiveKey(parsedData, 'prerequisites')),
+        benefits: convertToString(getCaseInsensitiveKey(parsedData, 'benefits'))
       });
     } catch (error) {
       console.error('OpenAI Generation Error:', error.message);
@@ -123,10 +117,10 @@ Bullet points.`;
       const parsedData = JSON.parse(jsonText);
       
       return res.status(200).json({
-        description: convertToString(parsedData.description),
-        agenda: convertToString(parsedData.agenda),
-        requirements: convertToString(parsedData.requirements),
-        benefits: convertToString(parsedData.benefits)
+        description: convertToString(getCaseInsensitiveKey(parsedData, 'description')),
+        agenda: convertToString(getCaseInsensitiveKey(parsedData, 'agenda') || getCaseInsensitiveKey(parsedData, 'schedule')),
+        requirements: convertToString(getCaseInsensitiveKey(parsedData, 'requirements') || getCaseInsensitiveKey(parsedData, 'prerequisites')),
+        benefits: convertToString(getCaseInsensitiveKey(parsedData, 'benefits'))
       });
     } else {
       throw new Error('Invalid response structure from Gemini API');
