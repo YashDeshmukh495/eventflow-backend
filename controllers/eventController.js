@@ -1,12 +1,24 @@
 import Event from '../models/Event.js';
 import Registration from '../models/Registration.js';
 import OpenAI from 'openai';
+import axios from 'axios';
 
-const getOpenAIClient = () => {
-  if (process.env.OPENAI_API_KEY) {
-    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const getAIConfig = () => {
+  const openAIKey = process.env.OPENAI_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  if (openAIKey && openAIKey.startsWith('sk-')) {
+    return { type: 'openai', key: openAIKey };
   }
-  return null;
+
+  if (geminiKey) {
+    if (geminiKey.startsWith('sk-')) {
+      return { type: 'openai', key: geminiKey };
+    }
+    return { type: 'gemini', key: geminiKey };
+  }
+
+  return { type: 'none' };
 };
 
 // @desc    Get all events
@@ -221,9 +233,9 @@ export const generateEventAI = async (req, res) => {
     return res.status(400).json({ message: 'Title and category are required' });
   }
 
-  const openai = getOpenAIClient();
+  const config = getAIConfig();
 
-  if (openai) {
+  if (config.type === 'openai') {
     try {
       let prompt = '';
       if (promptType === 'description') {
@@ -236,6 +248,7 @@ export const generateEventAI = async (req, res) => {
         return res.status(400).json({ message: 'Invalid promptType' });
       }
 
+      const openai = new OpenAI({ apiKey: config.key });
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
@@ -246,7 +259,52 @@ export const generateEventAI = async (req, res) => {
       const generatedText = response.choices[0].message.content.trim();
       return res.json({ result: generatedText });
     } catch (error) {
-      console.error('OpenAI Error, falling back to mock: ', error);
+      console.error('OpenAI Error, falling back to mock: ', error.message);
+    }
+  } else if (config.type === 'gemini') {
+    try {
+      let prompt = '';
+      if (promptType === 'description') {
+        prompt = `Generate a compelling, professional event description for a college event titled "${title}" in the category "${category}". The tone should be engaging, informative, and inviting for students. Keep it around 150-200 words. Do not include markdown headers or list prefixes, just the paragraph text.`;
+      } else if (promptType === 'agenda') {
+        prompt = `Create a realistic event agenda/schedule for a college event titled "${title}" categorized under "${category}". If available, here is the description: "${description}". Format the output as a neat timeline or clean schedule using bullet points or time slots (e.g. 10:00 AM - 11:00 AM: Intro). Keep it concise.`;
+      } else if (promptType === 'requirements') {
+        prompt = `List the requirements, prerequisites, or preparation steps for students attending the college event "${title}" in the category "${category}". If available, here is the description: "${description}". Format the output as bullet points. Examples: laptops, pre-registrations, software to install, or basic knowledge. Keep it concise.`;
+      } else {
+        return res.status(400).json({ message: 'Invalid promptType' });
+      }
+
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${config.key}`,
+        {
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }]
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (
+        response.data &&
+        response.data.candidates &&
+        response.data.candidates[0] &&
+        response.data.candidates[0].content &&
+        response.data.candidates[0].content.parts &&
+        response.data.candidates[0].content.parts[0]
+      ) {
+        const generatedText = response.data.candidates[0].content.parts[0].text.trim();
+        return res.json({ result: generatedText });
+      } else {
+        throw new Error('Invalid response structure from Gemini API');
+      }
+    } catch (error) {
+      console.error('Gemini Error, falling back to mock: ', error.response?.data || error.message);
     }
   }
 
