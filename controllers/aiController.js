@@ -36,7 +36,7 @@ const getCaseInsensitiveKey = (obj, targetKey) => {
 // @route   POST /api/ai/generate-event
 // @access  Private/Admin
 export const generateEventPlan = async (req, res) => {
-  const { title } = req.body;
+  const { title, date, time, venue, category } = req.body;
 
   if (!title) {
     return res.status(400).json({ message: 'Event title is required' });
@@ -47,15 +47,22 @@ export const generateEventPlan = async (req, res) => {
     return res.status(500).json({ message: 'GEMINI_API_KEY is not configured on the backend.' });
   }
 
+  let detailsText = '';
+  if (date) detailsText += `Event Date: ${date}\n`;
+  if (time) detailsText += `Event Time: ${time}\n`;
+  if (venue) detailsText += `Event Venue: ${venue}\n`;
+  if (category) detailsText += `Category: ${category}\n`;
+
   const prompt = `Generate a professional college event plan for the event titled "${title}".
+${detailsText}
 You must return a valid JSON object matching this schema exactly:
 {
   "description": "An engaging description of 100-150 words.",
-  "agenda": "A bullet-pointed schedule or timeline.",
+  "agenda": "A bullet-pointed schedule or timeline using the event date, time, and venue if provided. Use the actual timings if specified in the event time.",
   "requirements": "A bullet-pointed list of student prerequisites.",
   "benefits": "A bullet-pointed list of key benefits and takeaways."
 }
-Do not use other keys. Make sure "description" and "agenda" are fully populated.`;
+Do not use other keys. Make sure "description" and "agenda" are fully populated. Make sure the agenda aligns with the specified Date, Time, and Venue (e.g. if the time is 10:00 AM - 4:00 PM, create agenda slots within that period).`;
 
   // Detect if the user input an OpenAI key under GEMINI_API_KEY
   if (apiKey.startsWith('sk-')) {

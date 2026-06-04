@@ -227,7 +227,7 @@ export const deleteEvent = async (req, res) => {
 // @route   POST /api/events/ai-generate
 // @access  Private/Admin
 export const generateEventAI = async (req, res) => {
-  const { promptType, title, category, description } = req.body;
+  const { promptType, title, category, description, date, time, venue } = req.body;
 
   if (!title || !category) {
     return res.status(400).json({ message: 'Title and category are required' });
@@ -235,15 +235,20 @@ export const generateEventAI = async (req, res) => {
 
   const config = getAIConfig();
 
+  let detailsText = '';
+  if (date) detailsText += `Event Date: ${date}\n`;
+  if (time) detailsText += `Event Time: ${time}\n`;
+  if (venue) detailsText += `Event Venue: ${venue}\n`;
+
   if (config.type === 'openai') {
     try {
       let prompt = '';
       if (promptType === 'description') {
-        prompt = `Generate a compelling, professional event description for a college event titled "${title}" in the category "${category}". The tone should be engaging, informative, and inviting for students. Keep it around 150-200 words. Do not include markdown headers or list prefixes, just the paragraph text.`;
+        prompt = `Generate a compelling, professional event description for a college event titled "${title}" in the category "${category}". ${detailsText}The tone should be engaging, informative, and inviting for students. Keep it around 150-200 words. Do not include markdown headers or list prefixes, just the paragraph text. Mention the date, time, and venue if provided.`;
       } else if (promptType === 'agenda') {
-        prompt = `Create a realistic event agenda/schedule for a college event titled "${title}" categorized under "${category}". If available, here is the description: "${description}". Format the output as a neat timeline or clean schedule using bullet points or time slots (e.g. 10:00 AM - 11:00 AM: Intro). Keep it concise.`;
+        prompt = `Create a realistic event agenda/schedule for a college event titled "${title}" categorized under "${category}". ${detailsText}If available, here is the description: "${description}". Format the output as a neat timeline or clean schedule using bullet points or time slots (e.g. 10:00 AM - 11:00 AM: Intro). Keep it concise. The agenda schedule should align with the specified Date, Time, and Venue (e.g. if the time is 10:00 AM - 4:00 PM, create agenda slots within that period).`;
       } else if (promptType === 'requirements') {
-        prompt = `List the requirements, prerequisites, or preparation steps for students attending the college event "${title}" in the category "${category}". If available, here is the description: "${description}". Format the output as bullet points. Examples: laptops, pre-registrations, software to install, or basic knowledge. Keep it concise.`;
+        prompt = `List the requirements, prerequisites, or preparation steps for students attending the college event "${title}" in the category "${category}". ${detailsText}If available, here is the description: "${description}". Format the output as bullet points. Examples: laptops, pre-registrations, software to install, or basic knowledge. Keep it concise.`;
       } else {
         return res.status(400).json({ message: 'Invalid promptType' });
       }
@@ -265,11 +270,11 @@ export const generateEventAI = async (req, res) => {
     try {
       let prompt = '';
       if (promptType === 'description') {
-        prompt = `Generate a compelling, professional event description for a college event titled "${title}" in the category "${category}". The tone should be engaging, informative, and inviting for students. Keep it around 150-200 words. Do not include markdown headers or list prefixes, just the paragraph text.`;
+        prompt = `Generate a compelling, professional event description for a college event titled "${title}" in the category "${category}". ${detailsText}The tone should be engaging, informative, and inviting for students. Keep it around 150-200 words. Do not include markdown headers or list prefixes, just the paragraph text. Mention the date, time, and venue if provided.`;
       } else if (promptType === 'agenda') {
-        prompt = `Create a realistic event agenda/schedule for a college event titled "${title}" categorized under "${category}". If available, here is the description: "${description}". Format the output as a neat timeline or clean schedule using bullet points or time slots (e.g. 10:00 AM - 11:00 AM: Intro). Keep it concise.`;
+        prompt = `Create a realistic event agenda/schedule for a college event titled "${title}" categorized under "${category}". ${detailsText}If available, here is the description: "${description}". Format the output as a neat timeline or clean schedule using bullet points or time slots (e.g. 10:00 AM - 11:00 AM: Intro). Keep it concise. The agenda schedule should align with the specified Date, Time, and Venue (e.g. if the time is 10:00 AM - 4:00 PM, create agenda slots within that period).`;
       } else if (promptType === 'requirements') {
-        prompt = `List the requirements, prerequisites, or preparation steps for students attending the college event "${title}" in the category "${category}". If available, here is the description: "${description}". Format the output as bullet points. Examples: laptops, pre-registrations, software to install, or basic knowledge. Keep it concise.`;
+        prompt = `List the requirements, prerequisites, or preparation steps for students attending the college event "${title}" in the category "${category}". ${detailsText}If available, here is the description: "${description}". Format the output as bullet points. Examples: laptops, pre-registrations, software to install, or basic knowledge. Keep it concise.`;
       } else {
         return res.status(400).json({ message: 'Invalid promptType' });
       }
